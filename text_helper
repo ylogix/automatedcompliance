@@ -1,0 +1,88 @@
+Function GetCleanDateTime(line As String)
+    If InStr(1, line, "timeNow in Central time zone ") > 0 Then
+        line = ExtractValue(line, "timeNow in Central time zone ", "M") & "M"
+    Else
+        line = ExtractValue(line, "timeNow ", "M") & "M"
+    End If
+    
+    GetCleanDateTime = line
+End Function
+
+Function ExtractValue(line As String, subStringStart, subStringEnd) As String
+    'useful for simple extracts
+    
+    Dim startPos, endPos As Integer
+    Dim startLength, endLength As Integer
+    
+    startLength = Len(subStringStart)
+    endLength = Len(subStringEnd)
+    
+    startPos = InStr(1, line, subStringStart) + startLength
+    endPos = InStr(startPos, line, subStringEnd)
+    
+    If endPos = 0 Then
+        'if we fail to extract, return the line as is so it can be analyzed further in the results
+        ExtractValue = line
+    Else
+        ExtractValue = Mid(line, startPos, endPos - startPos)
+    End If
+End Function
+
+Function GetDataElementLine(searchDirection As String, fileContents() As String, lineNumber As Long, linePosition As Integer, precursorPhrases As String) As Long
+    Dim fileContentsLength As Long
+    Dim precursorPhraseList() As String
+    Dim i As Long
+    Dim line As String
+ 
+    fileContentsLength = UBound(fileContents) - LBound(fileContents)
+    precursorPhraseList = Split(precursorPhrases, ",")
+    GetDataElementLine = 0
+    
+    If fileContentsLength = 0 Then
+        GetDataElementLine = 0
+        Exit Function
+    End If
+    
+    If searchDirection = "Forward" Then
+        For i = lineNumber To fileContentsLength
+            line = fileContents(i)
+            If DoesLineHavePrecusorPhrase(line, linePosition, precursorPhraseList) Then
+                GetDataElementLine = i
+                Exit Function
+            End If
+        Next i
+        GetDataElementLine = i
+    ElseIf searchDirection = "Reverse" Then
+        For i = lineNumber To 0 Step -1
+            line = fileContents(i)
+            If DoesLineHavePrecusorPhrase(line, linePosition, precursorPhraseList) Then
+                GetDataElementLine = i
+                Exit Function
+            End If
+        Next i
+        GetDataElementLine = i
+    End If
+    
+    GetDataElementLine = 0
+    
+End Function
+Function DoesLineHavePrecusorPhrase(line As String, linePosition As Integer, phraseList() As String) As Boolean
+    Dim x As Integer
+    Dim count As Integer
+    Dim startPos, endPos As Integer
+    Dim phrase As String
+                    
+    count = UBound(phraseList) - LBound(phraseList)
+                    
+    For x = 0 To count
+        phrase = phraseList(x)
+        If InStr(linePosition, line, phrase) >= linePosition Then
+            startPos = InStr(linePosition, line, phrase) + Len(phrase)
+            endPos = Len(line) - startPos
+            DoesLineHavePrecusorPhrase = True
+            Exit Function
+        End If
+    Next x
+    
+    DoesLineHavePrecusorPhrase = False
+End Function
