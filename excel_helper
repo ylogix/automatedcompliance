@@ -1,0 +1,395 @@
+'forces strongly typed variables, best practice for all modules
+Option Explicit
+
+'# Function Name: RangeToStringArray
+
+Public Function RangeToStringArray(theRange As Excel.Range) As String()
+
+    ' Get values into a variant array
+    Dim variantValues As Variant
+    variantValues = theRange.Value
+
+    ' Set up a string array for them
+    Dim stringValues() As String
+    ReDim stringValues(1 To UBound(variantValues, 1), 1 To UBound(variantValues, 2))
+
+    ' Put them in there!
+    Dim columnCounter As Long, rowCounter As Long
+    For rowCounter = UBound(variantValues, 1) To 1 Step -1
+       For columnCounter = UBound(variantValues, 2) To 1 Step -1
+           stringValues(rowCounter, columnCounter) = CStr(variantValues(rowCounter, columnCounter))
+       Next columnCounter
+    Next rowCounter
+
+    ' Return the string array
+    RangeToStringArray = stringValues
+
+End Function
+
+
+'# Function Name: GetHeaderRow
+'# This function takes in a 2-Dimensional String Array and returns a
+'# String Array of the first "row" values. These are intended to be the headers of a large
+'# 2-Dimensional dataset.
+
+Function GetHeaderRow(allRecords() As String) As String()
+
+    Dim countColumns As Long
+    Dim headerRow() As String
+    Dim x As Long
+    
+    'count the number of columns in the 2-Dimensional String Array
+    countColumns = UBound(allRecords, 2) - LBound(allRecords, 2)
+    
+    'ReDefine the array of header values per the number of columns discovered
+    ReDim headerRow(countColumns)
+    
+    'populate the array of header values
+    For x = 0 To countColumns
+        headerRow(x) = allRecords(0, x)
+    Next
+    
+    'return the array of header values
+    GetHeaderRow = headerRow
+    
+End Function
+
+'# Function Name: GetColumnNumber
+'# This function takes in a String Array consisting of header values and
+'# the header value to look up. It returns the column number corresponding to
+'# the header value. WARNING: If it does not find this it returns an empty value, which
+'# can cause an error.
+
+Function GetColumnNumber(headerRow() As String, requiredHeader As String) As Long
+    Dim numberOfHeaders As Long
+    Dim x As Long
+    
+    numberOfHeaders = UBound(headerRow) - LBound(headerRow)
+    
+    For x = 0 To numberOfHeaders
+        If requiredHeader = headerRow(x) Then
+            GetColumnNumber = x
+            Exit Function
+            'verify a header is present before using this function
+        End If
+    Next
+End Function
+
+'# Function Name: HeaderExists
+'# This function takes in a String Array consisting of header values and a string of a single header to look
+'# for. It returns a boolean value; true if the header is found, false if it is not.
+
+Function HeaderExists(firstRow() As String, header As String) As Boolean
+    Dim length, x As Long
+    length = UBound(firstRow) - LBound(firstRow)
+    
+    For x = 0 To length
+        If LCase(header) = LCase(firstRow(x)) Then
+            HeaderExists = True
+            Exit Function
+        Else
+            HeaderExists = False
+        End If
+    Next
+    
+End Function
+
+'# Function Name: DoRequiredHeadersExist
+'# This function takes in a String Array consisting of header values and a string of required headers and
+'# the header value to look up. It returns a boolean value; true if the headers are all found, false if one
+'# or more are not.
+
+Function DoRequiredHeadersExist(headerArray() As String, requiredHeaders As String) As Boolean
+    Dim requiredHeaderArray() As String
+    Dim requiredHeaderCount As Integer
+    Dim x As Integer
+    Dim headerCount As Long
+
+    requiredHeaderArray = Split(requiredHeaders, ",")
+    
+    requiredHeaderCount = UBound(requiredHeaderArray) - LBound(requiredHeaderArray)
+    headerCount = UBound(headerArray) - LBound(headerArray)
+    
+    For x = 0 To requiredHeaderCount
+        If HeaderExists(headerArray, requiredHeaderArray(x)) Then
+            DoRequiredHeadersExist = True
+        Else
+            DoRequiredHeadersExist = False
+            Exit Function
+        End If
+    Next
+    
+    
+End Function
+
+'# Function Name: IdentifyMissingHeaders
+'# This function takes in a String Array consisting of header values and a string of required headers and
+'# the header value to look up. It returns a boolean value; true if the headers are all found, false if one
+'# or more are not.
+
+Function IdentifyMissingHeaders(headerArray() As String, requiredHeaders As String) As String
+    Dim requiredHeaderArray() As String
+    Dim requiredHeaderCount As Integer
+    Dim x As Integer
+    Dim headerCount As Long
+
+    requiredHeaderArray = Split(requiredHeaders, ",")
+    
+    requiredHeaderCount = UBound(requiredHeaderArray) - LBound(requiredHeaderArray)
+    headerCount = UBound(headerArray) - LBound(headerArray)
+    
+    For x = 0 To requiredHeaderCount
+        If Not HeaderExists(headerArray, requiredHeaderArray(x)) Then
+            If InStr(IdentifyMissingHeaders, ",") > 0 Then
+                IdentifyMissingHeaders = IdentifyMissingHeaders & ", " & requiredHeaderArray(x)
+            Else
+                IdentifyMissingHeaders = requiredHeaderArray(x)
+            End If
+        End If
+    Next
+    If Len(IdentifyMissingHeaders) = 0 Then
+        IdentifyMissingHeaders = ""
+    Else
+        IdentifyMissingHeaders = "The following headers were not found: " & IdentifyMissingHeaders
+    End If
+    
+    
+End Function
+
+'# Function Name: GetInputRecords
+'# This function takes in a string that fully describes the location of an Excel file.
+'# It attempts to open it and take the first sheet of the file, starting at cell
+'# A1. It automatically understands a matrix by uninterupted values (cells with values)
+'# and places those values into a 2-Dimensional Array which is then returned.
+'# WARNING: This function doesn't not check to see that the file is Excel or not.
+
+Function GetInputRecords(file As String) As String()
+    
+    Dim rowNumber As Long
+    Dim columnNumber As Long
+    Dim recordsArray() As String
+    Dim tempRecordsArray() As String
+    Dim x As Long
+    Dim y As Long
+    Dim z As Long
+    Dim workingRange As Range
+    Dim rowStart As Long
+    Dim rowEnd As Long
+    Dim rowsLeft As Long
+    Dim cellValue As String
+    Dim totalDataElements As Long
+    Dim progress As Long
+    Dim totalCellCount As Long
+    
+    
+    Application.ScreenUpdating = False
+       
+    Dim src As Workbook
+    Set src = Workbooks.Open(file, True, True)
+
+    rowNumber = CountCellsInRange(src.Sheets(1).Range("A:A"))
+    columnNumber = CountCellsInRange(src.Sheets(1).Range("1:1"))
+     
+    ReDim recordsArray(rowNumber - 1, columnNumber - 1)
+    
+    'here are two different ways to read data in from an excel file, the first is extremely fast and the second is much less quick
+    If True Then
+        tempRecordsArray = RangeToStringArray(src.Sheets(1).Range(cells(1, 1), cells(rowNumber, columnNumber)))
+        For x = 1 To rowNumber
+            For y = 1 To columnNumber
+                'ranges force 1-based arrays which is non-standard for our modules. this code converts the array populated by the range object back to a 0-based array.
+                recordsArray(x - 1, y - 1) = tempRecordsArray(x, y)
+               
+            Next
+            If x Mod 100 = 0 Then
+                    DoEvents
+                    Application.StatusBar = "Loading " & file & ": " & x & " out of " & rowNumber
+            End If
+        Next
+    Else
+        For x = 0 To rowNumber
+            If x Mod 250 Then
+                DoEvents
+                Application.StatusBar = "Loading " & file & ": " & x & " out of " & rowNumber
+            End If
+            For y = 0 To columnNumber
+                cellValue = CStr(src.Sheets(1).cells(x + 1, y + 1).Value)
+                recordsArray(x, y) = cellValue
+            Next
+        Next
+    End If
+    
+    Application.StatusBar = ""
+    
+    src.Close False
+    Set src = Nothing
+    
+    GetInputRecords = recordsArray
+
+    Application.ScreenUpdating = True
+    
+End Function
+
+'# Function Name: CountCellsInRange
+'# This function takes in a string that fully describes the location of an Excel file.
+'# It attempts to open it and take the first sheet of the file, starting at cell
+'# A1. It automatically understands a matrix by uninterupted values (cells with values)
+'# and places those values into a 2-Dimensional Array which is then returned.
+'# WARNING: This function doesn't not check to see that the file is Excel or not.
+
+Function CountCellsInRange(cells As Range) As Long
+    Dim cell As Range
+    Dim counter As Long
+    counter = 0
+    For Each cell In cells.cells
+        If cell.Text = "" Then
+            Exit For
+        Else
+            counter = counter + 1
+        End If
+    Next
+    CountCellsInRange = counter
+End Function
+
+Function CombineExcelDataSets(data1() As String, data2() As String, requiredHeaders As String) As String()
+
+    'always add 2 to 1
+    Dim data3() As String
+    Dim x As Long
+    Dim y As Long
+    Dim data1ColumnOrder() As Integer
+    Dim data2ColumnOrder() As Integer
+    Dim data1HeaderRow() As String
+    Dim data2HeaderRow() As String
+    Dim requiredHeadersArray() As String
+    Dim requiredHeadersCount As Integer
+    
+    Dim data1RowCount As Long
+    Dim data2RowCount As Long
+    Dim combinedRowCount As Long
+    
+    requiredHeadersArray = Split(requiredHeaders, ",")
+    requiredHeadersCount = UBound(requiredHeadersArray) - LBound(requiredHeadersArray)
+    
+    data1HeaderRow = GetHeaderRow(data1)
+    data2HeaderRow = GetHeaderRow(data2)
+    
+    If Not DoRequiredHeadersExist(data1HeaderRow, requiredHeaders) Or Not DoRequiredHeadersExist(data1HeaderRow, requiredHeaders) Then
+        MsgBox ("One or more required headers do not exist in the datasets.")
+        Exit Function
+    End If
+    
+    ReDim data1ColumnOrder(requiredHeadersCount)
+    
+    For x = 0 To requiredHeadersCount
+        data1ColumnOrder(x) = GetColumnNumber(data1HeaderRow, requiredHeadersArray(x))
+    Next
+    
+    ReDim data2ColumnOrder(requiredHeadersCount)
+    
+    For x = 0 To requiredHeadersCount
+        data2ColumnOrder(x) = GetColumnNumber(data2HeaderRow, requiredHeadersArray(x))
+    Next
+    
+    data1RowCount = UBound(data1, 1) - LBound(data1, 1)
+    data2RowCount = UBound(data2, 1) - LBound(data2, 1)
+    
+    'strip the header row from one of the datasets, combine the row counts to define the array
+    
+    combinedRowCount = data1RowCount + data2RowCount - 1
+
+        
+    ReDim data3(combinedRowCount, requiredHeadersCount)
+    
+    For x = 0 To data1RowCount
+        For y = 0 To requiredHeadersCount
+            data3(x, y) = data1(x, data1ColumnOrder(y))
+        Next
+    Next
+    
+    For x = 1 To data2RowCount
+        If x = data2RowCount Then
+            Exit For
+            'another odd behavior to catch
+        End If
+        For y = 0 To requiredHeadersCount
+            data3(data1RowCount + x, y) = data2(x, data2ColumnOrder(y))
+        Next
+    Next
+    
+    CombineExcelDataSets = data3
+    
+
+End Function
+Function GetOnlyRequiredColumns(data() As String, requiredHeaders As String) As String()
+
+    Dim requiredHeadersArray() As String
+    Dim requiredHeadersCount As Long
+    Dim headerRow() As String
+    Dim dataColumnOrder() As Long
+    Dim dataRowCount As Long
+    Dim cleanData() As String
+    Dim x As Long
+    Dim y As Long
+    
+    headerRow = GetHeaderRow(data)
+    
+    requiredHeadersArray = Split(requiredHeaders, ",")
+    requiredHeadersCount = UBound(requiredHeadersArray) - LBound(requiredHeadersArray)
+    
+    ReDim dataColumnOrder(requiredHeadersCount)
+    
+    For x = 0 To requiredHeadersCount
+        dataColumnOrder(x) = GetColumnNumber(headerRow, requiredHeadersArray(x))
+    Next
+        
+    dataRowCount = UBound(data, 1) - LBound(data, 1)
+    
+    'strip the header row from one of the datasets, combine the row counts to define the array
+            
+    ReDim cleanData(dataRowCount, requiredHeadersCount)
+    
+    For x = 0 To dataRowCount
+        For y = 0 To requiredHeadersCount
+            cleanData(x, y) = data(x, dataColumnOrder(y))
+        Next
+    Next
+    
+    GetOnlyRequiredColumns = cleanData
+
+End Function
+Function CombineMultipleExcelFiles(fileList() As String, requiredHeaders As String) As String()
+
+    Dim x As Long
+    Dim y As Long
+    Dim dataSet1() As String
+    Dim dataSet2() As String
+    Dim numberOfFiles As Long
+    
+    numberOfFiles = UBound(fileList) - LBound(fileList)
+    
+    For x = 0 To numberOfFiles
+        If x = 0 And numberOfFiles > 0 Then
+            'more than 1 file, initial loop
+            dataSet1 = GetInputRecords(fileList(x))
+            dataSet2 = GetInputRecords(fileList(x + 1))
+            dataSet1 = CombineExcelDataSets(dataSet1, dataSet2, requiredHeaders)
+            x = x + 1
+        ElseIf numberOfFiles = 0 Then
+            'only 1 file
+            dataSet1 = GetInputRecords(fileList(x))
+        Else
+            'more than 1 file, not initial loop
+            dataSet2 = GetInputRecords(fileList(x))
+            dataSet1 = CombineExcelDataSets(dataSet1, dataSet2, requiredHeaders)
+        End If
+        
+        DoEvents
+        Application.StatusBar = "Combining files: " & x & "/" & numberOfFiles
+    Next
+    
+    Application.StatusBar = ""
+    CombineMultipleExcelFiles = dataSet1
+    
+End Function
+
