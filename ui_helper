@@ -1,0 +1,45 @@
+Sub SelectFolder()
+    Dim fd As Office.FileDialog
+    Set fd = Application.FileDialog(msoFileDialogFolderPicker)
+
+    With fd
+
+      .AllowMultiSelect = False
+      .Title = "Please select the folder to process."
+
+      If .Show = True Then
+            Worksheets(1).TextBoxes(1).Text = .SelectedItems(1)
+      End If
+      
+    End With
+
+End Sub
+
+Sub SelectFile()
+    Dim fd As Office.FileDialog
+
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+
+    With fd
+
+      .AllowMultiSelect = False
+
+      ' Set the title of the dialog box.
+      .Title = "Please select the file."
+
+      ' Clear out the current filters, and add our own.
+      .Filters.Clear
+      .Filters.Add "XLSX", "*.xlsx"
+      .Filters.Add "All Files", "*.*"
+
+      ' Show the dialog box. If the .Show method returns True, the
+      ' user picked at least one file. If the .Show method returns
+      ' False, the user clicked Cancel.
+      If .Show = True Then
+        Worksheets(1).TextBox1.Text = .SelectedItems(1) 'replace txtFileName with your textbox
+
+      End If
+      
+    End With
+
+End Sub
