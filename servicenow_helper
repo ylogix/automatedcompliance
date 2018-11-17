@@ -1,0 +1,118 @@
+'forces strongly typed variables, best practice for all modules
+Option Explicit
+
+'#######################################
+'# Note: Requires texthelper_module
+'#######################################
+
+Function GetLatestApprovalDate(approvalHistory As String) As String
+
+    Dim approvalHistoryLineArray() As String
+    Dim approvalHistoryLineArrayLength As Integer
+    Dim lastApprovalDateString As String
+
+    Dim endPos As Integer
+    
+    approvalHistoryLineArray = Split(approvalHistory, Chr(10))
+    approvalHistoryLineArrayLength = UBound(approvalHistoryLineArray) - LBound(approvalHistoryLineArray)
+
+    If Not approvalHistoryLineArrayLength > 0 Then
+        GetLatestApprovalDate = ""
+        Exit Function
+    End If
+    
+    lastApprovalDateString = approvalHistoryLineArray(0)
+    endPos = InStr(1, lastApprovalDateString, " - ")
+    
+    If endPos > 0 Then
+        endPos = InStr(1, lastApprovalDateString, " - ")
+        GetLatestApprovalDate = Mid(lastApprovalDateString, 1, endPos - 1)
+    End If
+
+    Exit Function
+    
+End Function
+Function GetApprover(approval_history As String) As String
+
+    Dim approvalHistory() As String
+    Dim approverLine As Integer
+    Dim approver As String
+    Dim approvalDate As String
+    
+    approvalHistory = Split(approval_history, Chr(10))
+    approverLine = GetDataElementLine("Forward", approvalHistory, 0, 1, "(Process Owner)")
+    
+    
+    If approverLine = 0 Then
+        GetApprover = ""
+    Else
+        approver = ExtractValue(approvalHistory(approverLine), "approval by user ", " (")
+        approvalDate = ExtractValue(approvalHistory(approverLine - 1), "", " - ")
+        GetApprover = approver & "," & approvalDate
+    End If
+    
+End Function
+Function GetServiceOwner(approval_history As String) As String
+
+    Dim approvalHistoryLineArray() As String
+    Dim approvalHistoryLineArrayLength As Integer
+    Dim startPos As Integer
+    Dim endPos As Integer
+    Dim x As Integer
+    Dim serviceOwner As String
+    Dim startingString As String
+    Dim endingString As String
+    
+    approvalHistoryLineArray = Split(approval_history, Chr(10))
+    approvalHistoryLineArrayLength = UBound(approvalHistoryLineArray) - LBound(approvalHistoryLineArray)
+    serviceOwner = ""
+    For x = 0 To approvalHistoryLineArrayLength
+        If InStr(1, approvalHistoryLineArray(x), "(Technical Approval)") Then
+            startingString = "group approval by user "
+            startPos = InStr(1, approvalHistoryLineArray(x), startingString) + Len(startingString)
+            If startPos > 0 Then
+                endingString = " ("
+                endPos = InStr(startPos, approvalHistoryLineArray(x), endingString) - Len(endingString)
+                serviceOwner = Mid(approvalHistoryLineArray(x), startPos, endPos - startPos) & "," & Mid(approvalHistoryLineArray(x - 1), 1, 19)
+                If Mid(serviceOwner, 1, startPos + 1) = "user " Then
+                    serviceOwner = Mid(serviceOwner, 5, Len(serviceOwner) - 5)
+                End If
+                Exit For
+            End If
+            
+            
+        End If
+        
+    Next
+    
+    GetServiceOwner = serviceOwner
+    
+End Function
+
+Function GetLineManager(approval_history As String) As String
+
+    Dim approvalHistoryLineArray() As String
+    Dim approvalHistoryLineArrayLength As Integer
+    Dim startPos As Integer
+    Dim endPos As Integer
+    Dim x As Integer
+    
+    approvalHistoryLineArray = Split(approval_history, Chr(10))
+    approvalHistoryLineArrayLength = UBound(approvalHistoryLineArray) - LBound(approvalHistoryLineArray)
+    serviceOwner = ""
+    For x = 0 To approvalHistoryLineArrayLength
+        If InStr(1, approvalHistoryLineArray(x), "(Line Manager)") Then
+            startingString = "approved by user "
+            startPos = InStr(1, approvalHistoryLineArray(x), startingString) + Len(startingString)
+            If startPos > 0 Then
+                endingString = "("
+                endPos = InStr(startPos, approvalHistoryLineArray(x), endingString) - Len(endingString)
+                serviceOwner = Mid(approvalHistoryLineArray(x), startPos, endPos - startPos)
+                Exit For
+            End If
+        End If
+    Next
+    
+    GetLineManager = serviceOwner
+    
+End Function
